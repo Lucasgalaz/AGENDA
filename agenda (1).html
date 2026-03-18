@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Agenda</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a24;
+    --surface2: #22222f;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #f0f0f5;
+    --muted: #8888a8;
+    --accent: #7c6ff7;
+    --accent2: #a8d8a8;
+    --orange: #f0954a;
+    --red: #f05a5a;
+    --blue: #5ab4f0;
+    --radius: 12px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 1.2rem 2rem; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .logo-text { font-size: 18px; font-weight: 600; }
+  .logo-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .sync-status { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .sync-dot.ok { background: var(--accent2); }
+  .sync-dot.loading { background: var(--orange); animation: pulse 1s infinite; }
+  .sync-dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border2); background: transparent; color: var(--text); font-family: 'Sora', sans-serif; font-size: 13px; cursor: pointer; transition: all .2s; }
+  .btn:hover { background: var(--surface2); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: white; font-weight: 500; }
+  .btn-primary:hover { opacity: .85; background: var(--accent); }
+
+  .tabs { display: flex; gap: 4px; padding: 1.2rem 2rem 0; }
+  .tab { padding: 8px 20px; border-radius: 8px 8px 0 0; border: 1px solid transparent; border-bottom: none; background: transparent; color: var(--muted); font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .2s; }
+  .tab.active { background: var(--surface); border-color: var(--border); color: var(--text); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  main { padding: 0 2rem 2rem; }
+
+  .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 1.5rem 0; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .stat-value { font-size: 26px; font-weight: 700; margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+
+  .filter-bar { display: flex; gap: 10px; margin-bottom: 1.2rem; flex-wrap: wrap; align-items: center; }
+  .filter-input { flex: 1; min-width: 180px; padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Sora', sans-serif; font-size: 13px; }
+  .filter-input::placeholder { color: var(--muted); }
+  .filter-input:focus { outline: none; border-color: var(--accent); }
+  .filter-select { padding: 8px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Sora', sans-serif; font-size: 13px; cursor: pointer; }
+  .filter-select option { background: var(--surface2); }
+
+  .items-list { display: flex; flex-direction: column; gap: 10px; }
+  .item-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; transition: border-color .2s; cursor: pointer; }
+  .item-card:hover { border-color: var(--border2); }
+  .item-card.hoy { border-left: 3px solid var(--accent); }
+  .item-card.proximo { border-left: 3px solid var(--orange); }
+  .item-card.pasado { opacity: .55; }
+  .item-card.urgente { border-left: 3px solid var(--red); }
+  .type-badge { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .type-evento { background: rgba(124,111,247,.15); }
+  .type-flete { background: rgba(240,149,74,.15); }
+  .type-reunion { background: rgba(90,180,240,.15); }
+  .type-pago { background: rgba(168,216,168,.15); }
+  .type-otro { background: rgba(136,136,168,.15); }
+  .item-info { min-width: 0; }
+  .item-title { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-meta { display: flex; gap: 12px; margin-top: 4px; flex-wrap: wrap; }
+  .item-meta span { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+  .item-meta .green { color: var(--accent2); }
+  .item-actions { display: flex; gap: 6px; }
+  .btn-icon { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all .2s; }
+  .btn-icon:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+  .btn-icon.delete:hover { color: var(--red); border-color: var(--red); }
+  .status-pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 500; }
+  .status-hoy { background: rgba(124,111,247,.2); color: var(--accent); }
+  .status-proximo { background: rgba(240,149,74,.2); color: var(--orange); }
+  .status-pasado { background: rgba(136,136,168,.15); color: var(--muted); }
+  .status-urgente { background: rgba(240,90,90,.2); color: var(--red); }
+  .empty-state { text-align: center; padding: 4rem 2rem; color: var(--muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: .4; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 2rem; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  .modal-title { font-size: 18px; font-weight: 600; }
+  .btn-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 4px; }
+  .btn-close:hover { color: var(--text); }
+  .form-group { margin-bottom: 1.2rem; }
+  .form-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; display: block; }
+  .form-control { width: 100%; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Sora', sans-serif; font-size: 14px; }
+  .form-control::placeholder { color: var(--muted); }
+  .form-control:focus { outline: none; border-color: var(--accent); }
+  select.form-control option { background: var(--surface2); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .type-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .type-option { padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'Sora', sans-serif; font-size: 11px; cursor: pointer; text-align: center; transition: all .2s; }
+  .type-option .type-emoji { font-size: 18px; display: block; margin-bottom: 3px; }
+  .type-option.selected, .type-option:hover { border-color: var(--accent); color: var(--text); background: rgba(124,111,247,.1); }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.5rem; }
+
+  .calendar-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); }
+  .cal-month { font-size: 16px; font-weight: 600; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .cal-day-name { text-align: center; font-size: 11px; color: var(--muted); padding: 8px 4px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+  .cal-day { min-height: 80px; padding: 6px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); cursor: pointer; transition: background .15s; }
+  .cal-day:nth-child(7n) { border-right: none; }
+  .cal-day:hover { background: var(--surface2); }
+  .cal-day.other-month .cal-day-num { opacity: .3; }
+  .cal-day.today { background: rgba(124,111,247,.08); }
+  .cal-day.today .cal-day-num { color: var(--accent); font-weight: 600; }
+  .cal-day-num { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .cal-event-dot { font-size: 10px; padding: 1px 5px; border-radius: 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: rgba(124,111,247,.2); color: var(--accent); }
+  .cal-event-dot.flete { background: rgba(240,149,74,.2); color: var(--orange); }
+  .cal-event-dot.reunion { background: rgba(90,180,240,.2); color: var(--blue); }
+  .cal-event-dot.pago { background: rgba(168,216,168,.2); color: var(--accent2); }
+
+  .detail-field { margin-bottom: 1rem; }
+  .detail-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+  .detail-value { font-size: 15px; }
+
+  .notif-bar { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 300; display: flex; flex-direction: column; gap: 8px; }
+  .notif { background: var(--surface2); border: 1px solid var(--border2); border-radius: 10px; padding: 10px 16px; font-size: 13px; min-width: 240px; animation: slideIn .3s ease; }
+  @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  @media (max-width: 600px) {
+    header { padding: 1rem; }
+    main { padding: 0 1rem 1rem; }
+    .tabs { padding: 1rem 1rem 0; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .form-row { grid-template-columns: 1fr; }
+    .type-grid { grid-template-columns: repeat(3, 1fr); }
+    .item-card { grid-template-columns: auto 1fr; }
+    .item-actions { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">📋</div>
+    <div>
+      <div class="logo-text">Mi Agenda</div>
+      <div class="logo-sub">Eventos & Fletes</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <div class="sync-status">
+      <div class="sync-dot loading" id="syncDot"></div>
+      <span id="syncLabel">Conectando...</span>
+    </div>
+    <button class="btn" onclick="syncData()" title="Sincronizar">🔄</button>
+    <button class="btn btn-primary" onclick="openModal()">+ Nuevo</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="setTab('lista', this)">📋 Lista</button>
+  <button class="tab" onclick="setTab('calendario', this)">📅 Calendario</button>
+  <button class="tab" onclick="setTab('proximos', this)">⚡ Próximos</button>
+</div>
+
+<main>
+  <div id="tab-lista">
+    <div class="stats-bar" id="statsBar"></div>
+    <div class="filter-bar">
+      <input class="filter-input" type="text" id="searchInput" placeholder="🔍 Buscar evento o flete..." oninput="renderList()">
+      <select class="filter-select" id="filterType" onchange="renderList()">
+        <option value="">Todos los tipos</option>
+        <option value="evento">📅 Evento</option>
+        <option value="flete">🚚 Flete</option>
+        <option value="reunion">🤝 Reunión</option>
+        <option value="pago">💰 Pago</option>
+        <option value="otro">📌 Otro</option>
+      </select>
+      <select class="filter-select" id="filterStatus" onchange="renderList()">
+        <option value="">Todo</option>
+        <option value="hoy">Hoy</option>
+        <option value="proximo">Próximos</option>
+        <option value="pasado">Pasados</option>
+      </select>
+    </div>
+    <div class="items-list" id="itemsList"></div>
+  </div>
+
+  <div id="tab-calendario" style="display:none">
+    <div style="margin:1.5rem 0" class="calendar-container">
+      <div class="cal-header">
+        <button class="btn" onclick="calPrev()">←</button>
+        <span class="cal-month" id="calTitle"></span>
+        <button class="btn" onclick="calNext()">→</button>
+      </div>
+      <div class="cal-grid" id="calDayNames"></div>
+      <div class="cal-grid" id="calDays"></div>
+    </div>
+  </div>
+
+  <div id="tab-proximos" style="display:none">
+    <div style="margin:1.5rem 0" id="proximosList"></div>
+  </div>
+</main>
+
+<!-- MODAL FORMULARIO -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">➕ Nuevo registro</span>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tipo</label>
+      <div class="type-grid">
+        <button class="type-option selected" onclick="selectType('evento',this)" data-type="evento"><span class="type-emoji">📅</span>Evento</button>
+        <button class="type-option" onclick="selectType('flete',this)" data-type="flete"><span class="type-emoji">🚚</span>Flete</button>
+        <button class="type-option" onclick="selectType('reunion',this)" data-type="reunion"><span class="type-emoji">🤝</span>Reunión</button>
+        <button class="type-option" onclick="selectType('pago',this)" data-type="pago"><span class="type-emoji">💰</span>Pago</button>
+        <button class="type-option" onclick="selectType('otro',this)" data-type="otro"><span class="type-emoji">📌</span>Otro</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Título / Descripción</label>
+      <input class="form-control" type="text" id="fTitle" placeholder="Ej: Flete a Maipú, Reunión con cliente...">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Fecha</label>
+        <input class="form-control" type="date" id="fDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hora (opcional)</label>
+        <input class="form-control" type="time" id="fTime">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Lugar / Dirección</label>
+        <input class="form-control" type="text" id="fPlace" placeholder="Ej: Av. Las Condes 1234">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Monto / Valor (opcional)</label>
+        <input class="form-control" type="text" id="fAmount" placeholder="Ej: $50.000">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cliente / Contacto (opcional)</label>
+      <input class="form-control" type="text" id="fContact" placeholder="Nombre o número de contacto">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notas adicionales</label>
+      <textarea class="form-control" id="fNotes" rows="3" placeholder="Detalles extras, instrucciones, etc..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Prioridad</label>
+      <select class="form-control" id="fPriority">
+        <option value="normal">Normal</option>
+        <option value="urgente">🔴 Urgente</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveItem()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALLE -->
+<div class="modal-overlay" id="detailOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="detailTitle"></span>
+      <button class="btn-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div id="detailBody"></div>
+    <div class="modal-footer" id="detailFooter"></div>
+  </div>
+</div>
+
+<div class="notif-bar" id="notifBar"></div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbx4U7oR_ij5TE1BmBjzXjBOYLps2EIwova0dT1ku3L7CyBEnNaBa4PIsIoroYVEzzVw/exec';
+const CACHE_KEY = 'agenda_cache_v1';
+
+let items = [];
+let editingId = null;
+let selectedType = 'evento';
+let calYear, calMonth;
+let syncing = false;
+
+const TYPE_ICONS = { evento:'📅', flete:'🚚', reunion:'🤝', pago:'💰', otro:'📌' };
+const TYPE_LABELS = { evento:'Evento', flete:'Flete', reunion:'Reunión', pago:'Pago', otro:'Otro' };
+const DAYS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function setSyncStatus(status, label) {
+  document.getElementById('syncDot').className = 'sync-dot ' + status;
+  document.getElementById('syncLabel').textContent = label;
+}
+
+function saveCache() { try { localStorage.setItem(CACHE_KEY, JSON.stringify(items)); } catch(e){} }
+function loadCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || []; } catch(e) { return []; } }
+
+async function syncData() {
+  if (syncing) return;
+  syncing = true;
+  setSyncStatus('loading', 'Sincronizando...');
+  try {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      items = data.filter(i => i.id && i.title);
+      saveCache();
+      setSyncStatus('ok', 'Sincronizado ✓');
+      notify('☁️ Datos sincronizados');
+    } else {
+      throw new Error('Respuesta inesperada');
+    }
+  } catch(e) {
+    setSyncStatus('error', 'Sin conexión');
+    notify('⚠️ Usando datos locales');
+    items = loadCache();
+  }
+  syncing = false;
+  renderList();
+  checkReminders();
+}
+
+async function pushToSheets() {
+  setSyncStatus('loading', 'Guardando...');
+  try {
+    await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'save', items }),
+      headers: { 'Content-Type': 'text/plain' }
+    });
+    saveCache();
+    setSyncStatus('ok', 'Guardado ✓');
+  } catch(e) {
+    setSyncStatus('error', 'Error al guardar');
+    notify('⚠️ No se pudo guardar en la nube');
+    saveCache();
+  }
+}
+
+function getStatus(item) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(item.date + 'T00:00:00');
+  if (d.getTime() === today.getTime()) return 'hoy';
+  if (d > today) return 'proximo';
+  return 'pasado';
+}
+
+function renderStats() {
+  const hoy = items.filter(i => getStatus(i) === 'hoy').length;
+  const proximos = items.filter(i => getStatus(i) === 'proximo').length;
+  const fletes = items.filter(i => i.type === 'flete' && getStatus(i) !== 'pasado').length;
+  const urgentes = items.filter(i => i.priority === 'urgente' && getStatus(i) !== 'pasado').length;
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Hoy</div><div class="stat-value" style="color:var(--accent)">${hoy}</div></div>
+    <div class="stat-card"><div class="stat-label">Próximos</div><div class="stat-value" style="color:var(--orange)">${proximos}</div></div>
+    <div class="stat-card"><div class="stat-label">Fletes pendientes</div><div class="stat-value" style="color:var(--blue)">${fletes}</div></div>
+    <div class="stat-card"><div class="stat-label">Urgentes</div><div class="stat-value" style="color:var(--red)">${urgentes}</div></div>
+  `;
+}
+
+function renderList() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const ft = document.getElementById('filterType').value;
+  const fs = document.getElementById('filterStatus').value;
+  let filtered = items.filter(i => {
+    if (ft && i.type !== ft) return false;
+    if (fs && getStatus(i) !== fs) return false;
+    if (q && !(i.title.toLowerCase().includes(q) || (i.place||'').toLowerCase().includes(q) || (i.contact||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  filtered.sort((a,b) => {
+    const order = {hoy:0, proximo:1, pasado:2};
+    const sa = order[getStatus(a)], sb = order[getStatus(b)];
+    if (sa !== sb) return sa - sb;
+    return new Date(a.date) - new Date(b.date);
+  });
+  const container = document.getElementById('itemsList');
+  if (!filtered.length) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>No hay registros aún.<br>Haz clic en <strong>+ Nuevo</strong> para agregar.</p></div>`;
+    renderStats(); return;
+  }
+  container.innerHTML = filtered.map(item => {
+    const st = getStatus(item);
+    const urgent = item.priority === 'urgente';
+    let cardClass = urgent ? 'urgente' : st;
+    let statusHtml = '';
+    if (urgent) statusHtml = `<span class="status-pill status-urgente">🔴 Urgente</span>`;
+    else if (st === 'hoy') statusHtml = `<span class="status-pill status-hoy">⚡ Hoy</span>`;
+    else if (st === 'proximo') {
+      const dias = Math.ceil((new Date(item.date+'T00:00:00') - new Date(new Date().toDateString())) / 86400000);
+      statusHtml = `<span class="status-pill status-proximo">en ${dias}d</span>`;
+    } else statusHtml = `<span class="status-pill status-pasado">Pasado</span>`;
+    const dateStr = new Date(item.date+'T00:00:00').toLocaleDateString('es-CL',{weekday:'short',day:'numeric',month:'short'});
+    return `
+    <div class="item-card ${cardClass}" onclick="openDetail('${item.id}')">
+      <div class="type-badge type-${item.type}">${TYPE_ICONS[item.type]||'📌'}</div>
+      <div class="item-info">
+        <div class="item-title">${item.title}</div>
+        <div class="item-meta">
+          <span>📆 ${dateStr}${item.time ? ' · ' + item.time : ''}</span>
+          ${item.place ? `<span>📍 ${item.place}</span>` : ''}
+          ${item.amount ? `<span class="green">💲 ${item.amount}</span>` : ''}
+          ${item.contact ? `<span>👤 ${item.contact}</span>` : ''}
+          ${statusHtml}
+        </div>
+      </div>
+      <div class="item-actions" onclick="event.stopPropagation()">
+        <button class="btn-icon" onclick="editItem('${item.id}')" title="Editar">✏️</button>
+        <button class="btn-icon delete" onclick="deleteItem('${item.id}')" title="Eliminar">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+  renderStats();
+}
+
+function renderCalendar() {
+  const now = new Date();
+  if (!calYear) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
+  document.getElementById('calTitle').textContent = `${MONTHS[calMonth]} ${calYear}`;
+  document.getElementById('calDayNames').innerHTML = DAYS.map(d => `<div class="cal-day-name">${d}</div>`).join('');
+  const first = new Date(calYear, calMonth, 1);
+  const last = new Date(calYear, calMonth+1, 0);
+  let days = [];
+  for (let i = 0; i < first.getDay(); i++) days.push({date: new Date(calYear, calMonth, -first.getDay()+1+i), other: true});
+  for (let i = 1; i <= last.getDate(); i++) days.push({date: new Date(calYear, calMonth, i), other: false});
+  while (days.length % 7) { const prev = days[days.length-1].date; days.push({date: new Date(prev.getFullYear(), prev.getMonth(), prev.getDate()+1), other: true}); }
+  const todayStr = new Date().toISOString().split('T')[0];
+  document.getElementById('calDays').innerHTML = days.map(({date, other}) => {
+    const ds = date.toISOString().split('T')[0];
+    const dayItems = items.filter(i => i.date === ds);
+    const isToday = ds === todayStr;
+    return `<div class="cal-day ${other?'other-month':''} ${isToday?'today':''}" onclick="openDay('${ds}')">
+      <div class="cal-day-num">${date.getDate()}</div>
+      ${dayItems.slice(0,3).map(i => `<div class="cal-event-dot ${i.type}">${TYPE_ICONS[i.type]||'📌'} ${i.title.slice(0,10)}</div>`).join('')}
+      ${dayItems.length > 3 ? `<div style="font-size:10px;color:var(--muted)">+${dayItems.length-3} más</div>` : ''}
+    </div>`;
+  }).join('');
+}
+function calPrev() { calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
+function calNext() { calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
+function openDay(ds) {
+  const dayItems = items.filter(i => i.date === ds);
+  if (!dayItems.length) { openModalWithDate(ds); return; }
+  const d = new Date(ds+'T00:00:00');
+  document.getElementById('detailTitle').textContent = `📅 ${d.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'})}`;
+  document.getElementById('detailBody').innerHTML = dayItems.map(i => `
+    <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:22px">${TYPE_ICONS[i.type]||'📌'}</span>
+      <div><div style="font-weight:500">${i.title}</div><div style="font-size:12px;color:var(--muted)">${i.time||'Sin hora'}${i.place?' · '+i.place:''}</div></div>
+    </div>`).join('');
+  document.getElementById('detailFooter').innerHTML = `<button class="btn btn-primary" onclick="closeDetail();openModalWithDate('${ds}')">+ Agregar a este día</button>`;
+  document.getElementById('detailOverlay').classList.add('open');
+}
+
+function renderProximos() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const next7 = new Date(today); next7.setDate(next7.getDate()+7);
+  const proxItems = items.filter(i => { const d = new Date(i.date+'T00:00:00'); return d >= today && d <= next7; }).sort((a,b) => new Date(a.date) - new Date(b.date));
+  const container = document.getElementById('proximosList');
+  if (!proxItems.length) { container.innerHTML = `<div class="empty-state"><div class="icon">🎉</div><p>No tienes eventos en los próximos 7 días</p></div>`; return; }
+  const groups = {};
+  proxItems.forEach(i => { if (!groups[i.date]) groups[i.date] = []; groups[i.date].push(i); });
+  container.innerHTML = Object.entries(groups).map(([date, gItems]) => {
+    const d = new Date(date+'T00:00:00');
+    const isToday = date === new Date().toISOString().split('T')[0];
+    const label = isToday ? '⚡ HOY' : d.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
+    return `<div style="margin-bottom:1.5rem">
+      <div style="font-size:12px;font-weight:600;color:${isToday?'var(--accent)':'var(--muted)'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${label}</div>
+      ${gItems.map(i => `
+        <div class="item-card ${i.priority==='urgente'?'urgente':''}" onclick="openDetail('${i.id}')" style="margin-bottom:6px">
+          <div class="type-badge type-${i.type}">${TYPE_ICONS[i.type]||'📌'}</div>
+          <div class="item-info">
+            <div class="item-title">${i.title}</div>
+            <div class="item-meta">
+              ${i.time ? `<span>🕐 ${i.time}</span>` : ''}
+              ${i.place ? `<span>📍 ${i.place}</span>` : ''}
+              ${i.amount ? `<span class="green">💲 ${i.amount}</span>` : ''}
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+function setTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['lista','calendario','proximos'].forEach(t => document.getElementById('tab-'+t).style.display = 'none');
+  document.getElementById('tab-'+tab).style.display = 'block';
+  if (tab === 'calendario') renderCalendar();
+  if (tab === 'proximos') renderProximos();
+}
+
+function openModal(item) {
+  editingId = item ? item.id : null;
+  selectedType = item ? item.type : 'evento';
+  document.getElementById('modalTitle').textContent = item ? '✏️ Editar registro' : '➕ Nuevo registro';
+  document.querySelectorAll('.type-option').forEach(b => b.classList.toggle('selected', b.dataset.type === selectedType));
+  document.getElementById('fTitle').value = item?.title || '';
+  document.getElementById('fDate').value = item?.date || new Date().toISOString().split('T')[0];
+  document.getElementById('fTime').value = item?.time || '';
+  document.getElementById('fPlace').value = item?.place || '';
+  document.getElementById('fAmount').value = item?.amount || '';
+  document.getElementById('fContact').value = item?.contact || '';
+  document.getElementById('fNotes').value = item?.notes || '';
+  document.getElementById('fPriority').value = item?.priority || 'normal';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function openModalWithDate(ds) { openModal(); document.getElementById('fDate').value = ds; }
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+function selectType(type, el) {
+  selectedType = type;
+  document.querySelectorAll('.type-option').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function saveItem() {
+  const title = document.getElementById('fTitle').value.trim();
+  const date = document.getElementById('fDate').value;
+  if (!title) { notify('⚠️ Ingresa un título'); return; }
+  if (!date) { notify('⚠️ Ingresa una fecha'); return; }
+  const item = {
+    id: editingId || Date.now().toString(),
+    type: selectedType,
+    title,
+    date,
+    time: document.getElementById('fTime').value,
+    place: document.getElementById('fPlace').value.trim(),
+    amount: document.getElementById('fAmount').value.trim(),
+    contact: document.getElementById('fContact').value.trim(),
+    notes: document.getElementById('fNotes').value.trim(),
+    priority: document.getElementById('fPriority').value,
+    createdAt: editingId ? (items.find(i=>i.id===editingId)?.createdAt||Date.now()) : Date.now()
+  };
+  if (editingId) { items = items.map(i => i.id === editingId ? item : i); notify('✅ Registro actualizado'); }
+  else { items.unshift(item); notify('✅ Registro guardado'); }
+  closeModal();
+  renderList();
+  if (document.getElementById('tab-calendario').style.display !== 'none') renderCalendar();
+  if (document.getElementById('tab-proximos').style.display !== 'none') renderProximos();
+  await pushToSheets();
+}
+
+function editItem(id) { const item = items.find(i => i.id === id); if (item) openModal(item); }
+
+async function deleteItem(id) {
+  if (!confirm('¿Eliminar este registro?')) return;
+  items = items.filter(i => i.id !== id);
+  renderList();
+  notify('🗑️ Eliminado');
+  await pushToSheets();
+}
+
+function openDetail(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  const st = getStatus(item);
+  const stLabels = {hoy:'⚡ Hoy',proximo:'📅 Próximo',pasado:'✓ Pasado'};
+  document.getElementById('detailTitle').textContent = `${TYPE_ICONS[item.type]||'📌'} ${item.title}`;
+  document.getElementById('detailBody').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div class="detail-field"><div class="detail-label">Tipo</div><div class="detail-value">${TYPE_ICONS[item.type]||'📌'} ${TYPE_LABELS[item.type]||item.type}</div></div>
+      <div class="detail-field"><div class="detail-label">Estado</div><div class="detail-value">${item.priority==='urgente'?'🔴 Urgente':stLabels[st]}</div></div>
+      <div class="detail-field"><div class="detail-label">Fecha</div><div class="detail-value">${new Date(item.date+'T00:00:00').toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div></div>
+      ${item.time ? `<div class="detail-field"><div class="detail-label">Hora</div><div class="detail-value">🕐 ${item.time}</div></div>` : ''}
+      ${item.place ? `<div class="detail-field"><div class="detail-label">Lugar</div><div class="detail-value">📍 ${item.place}</div></div>` : ''}
+      ${item.amount ? `<div class="detail-field"><div class="detail-label">Monto</div><div class="detail-value" style="color:var(--accent2)">💲 ${item.amount}</div></div>` : ''}
+      ${item.contact ? `<div class="detail-field"><div class="detail-label">Contacto</div><div class="detail-value">👤 ${item.contact}</div></div>` : ''}
+    </div>
+    ${item.notes ? `<div class="detail-field"><div class="detail-label">Notas</div><div class="detail-value" style="background:var(--surface2);padding:10px;border-radius:8px;font-size:14px;line-height:1.5">${item.notes}</div></div>` : ''}
+  `;
+  document.getElementById('detailFooter').innerHTML = `
+    <button class="btn" onclick="closeDetail()">Cerrar</button>
+    <button class="btn" onclick="closeDetail();editItem('${id}')">✏️ Editar</button>
+    <button class="btn" style="color:var(--red)" onclick="closeDetail();deleteItem('${id}')">🗑️ Eliminar</button>
+  `;
+  document.getElementById('detailOverlay').classList.add('open');
+}
+function closeDetail() { document.getElementById('detailOverlay').classList.remove('open'); }
+
+function notify(msg) {
+  const bar = document.getElementById('notifBar');
+  const el = document.createElement('div');
+  el.className = 'notif';
+  el.textContent = msg;
+  bar.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+function checkReminders() {
+  const hoy = items.filter(i => getStatus(i) === 'hoy');
+  const urgentes = items.filter(i => i.priority === 'urgente' && getStatus(i) !== 'pasado');
+  if (hoy.length) notify(`📅 Tienes ${hoy.length} evento(s) para hoy`);
+  if (urgentes.length) notify(`🔴 ${urgentes.length} registro(s) urgente(s) pendiente(s)`);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeDetail(); } });
+document.getElementById('modalOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+document.getElementById('detailOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeDetail(); });
+
+items = loadCache();
+renderList();
+syncData();
+</script>
+</body>
+</html>
